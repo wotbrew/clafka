@@ -83,7 +83,7 @@ terminate when the log is exhausted, rather it enters a polling mode allowing yo
 ``` 
  
 `fetch-log` and `fetch-seq` will skip messages that are too large to be fetched with a single fetch,
-so tune the fetch-size carefully. The default fetch size is 512KB should be plenty 
+so tune the fetch-size carefully. The default fetch size is 512KB which should be plenty 
 for most use cases.
 
 ### Producer 
