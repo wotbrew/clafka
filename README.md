@@ -47,36 +47,49 @@ then you would have to use `consumer` to give you a `SimpleConsumer` for that br
 You can fetch some data from a log with `fetch`
 
 ```clojure
-;;fetches 1024 bytes of data from my-topic partition 0, offset 0.
+;;fetches 1024 bytes of data from topic "my-topic" partition 0, offset 0.
 (fetch c "my-topic" 0 0 1024)
 ;; =>
+{:messages [{:message #<byte[] [B@755df882>
+             :offset 0 
+             :next-offset 1}]
+ :total-bytes 1024 
+ :valid-bytes 124
+ :error nil 
+ :error-code 0}
 ```
 `fetch` will throw exceptions for the various 
 kafka error codes given by the `ErrorMapping` class in kafka, if you do not want this and you want to manually check error-codes etc you can do so with the underlying `-fetch` fn.
 
 So for example, if the leader for a partition changes, you should expect `fetch` to throw a 
-kafka.common.LeaderNotA
+`kafka.common.NotLeaderForPartitionException`.
 
 #### Fetching a seq
 
 You can fetch a lazy seq of the entire log until the current head with `fetch-log`
 ```clojure
 ;;fetches a seq of messages lazily from the log in blocks of *default-fetch-size*
-;;from my-topic partition 0 offset 0
+;;from topic "my-topic" partition 0 offset 0
 (fetch-log c "my-topic" 0 0) 
 ;;=>
+({:message #<byte[] [B@755df882>
+  :offset 0 
+  :next-offset 1}, ...)
+
 ;;you can also manually specify the fetch size to use... (here we say 1024 bytes)
 (fetch-log c "my-topic" 0 0 1024)
-;;=>
 ```
 
 You can also return an infinite seq of messages with `log-seq`, this sequence does not 
 terminate when the log is exhausted, rather it enters a polling mode allowing you to block on new messages being added to the log over time.
 
 ```clojure
-;;will use the default size and poll time parameters (512KB and 1 second)
+;;will use the default size and poll-ms parameters (512KB and 1 second)
 (log-seq c "my-topic" 0 0)
 ;;=>
+({:message #<byte[] [B@755df882>
+  :offset 0 
+  :next-offset 1}, ...)
 
 ;;you can manually specify the size and poll-ms through a configuration map
 (log-seq c "my-topic 0 0 {:size 1024, :poll-ms 2000})
@@ -93,15 +106,21 @@ You can produce messages using the `KafkaProducer` api.
 Create a producer using configuration as specified: [docs](http://kafka.apache.org/documentation.html#newproducerconfigs)
 ```clojure
 (def p (producer {"bootstrap.servers" "localhost:9092,localhost:9093"}))
+
+;;close a producer with 
+(.close p)
 ```
 ** NB ** - The config options are specified in the properties style, so always use strings!
 
 Then publish a message using  `publish!`
 
 ```clojure
-(publish! p "topic-a" (.getBytes "some-key") (.getBytes "hello world!"))
-;;close a producer with 
-(.close p)
+(publish! p "my-topic" (.getBytes "some-key") (.getBytes "hello world!"))
+
+;;publish returns a delay that can returns some metadata about the publish 
+@*1 
+;;=> {:topic "my-topic", :offset 0, :partition 0}
+
 ```
 
 By default `publish!` will take byte arrays for the key and value. If you want you can use the `KafkaProducer` serialization mechanism by specifying a pair of either functions or `Serializer` instances when you create the producer.
@@ -122,7 +141,6 @@ By default `publish!` will take byte arrays for the key and value. If you want y
 Low hanging fruit:
 - There are no type hints!
 - More tests would be good
-- Keep the library simple, its not designed as competition for java api's or clj-kafka, its just a wrapper!
 
 ## License
 Copyright © 2015 MixRadio
