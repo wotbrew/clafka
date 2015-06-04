@@ -119,7 +119,8 @@ Then publish a message using  `publish!`
 
 ;;publish returns a delay that can returns some metadata about the publish 
 @*1 
-;;=> {:topic "my-topic", :offset 0, :partition 0}
+;;=> 
+{:topic "my-topic", :offset 0, :partition 0}
 
 ```
 
