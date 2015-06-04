@@ -2,7 +2,7 @@
 
 ###Concept
 
-Provide the simplest possible consumer and producer interfaces for kafka by exposing the new java producer api and the simple consumer.
+To provide the simplest possible consumer and producer interfaces for kafka by exposing the new java producer api and the simple consumer.
 
 It is designed to be used as the basis for more sophisticated consumers whose needs are not met 
 by the default zookeeper consumer in kafka.
@@ -30,18 +30,16 @@ First create a `SimpleConsumer` instance with `consumer`
 The `SimpleConsumer` talks to a single broker, and can only receive data for partitions on which that
 broker is the leader.
 
-However, you can ask any broker which broker is the leader for a partition in your cluster via
+#### Finding a leader
+
+You can ask any broker which broker is the leader for a partition in your cluster via
 `find-leader` or `find-leaders`
 
-#### Finding a leader
 ```clojure 
 (find-leader c "my-topic" 0)
 ;;=>
 {:host "localhost" :port 9092 :id 0}
 ```
-
-Lets assume the existing consumer is talking to the broker that owns partition *0*. If it wasn't 
-then you would have to use `consumer` to give you a `SimpleConsumer` for that broker.
 
 #### Fetching
 You can fetch some data from a log with `fetch`
@@ -63,6 +61,9 @@ kafka error codes given by the `ErrorMapping` class in kafka, if you do not want
 
 So for example, if the leader for a partition changes, you should expect `fetch` to throw a 
 `kafka.common.NotLeaderForPartitionException`.
+
+At which point, if you wanted to continue fetching from that partition, you would have to construct a 
+new `consumer`.
 
 #### Fetching a seq
 
@@ -146,5 +147,5 @@ Low hanging fruit:
 ## License
 Copyright © 2015 MixRadio
 
-[mr-edda is released under the 3-clause license ("New BSD License" or "Modified BSD License").](http://github.com/mixradio/tiny-kafka/blob/master/LICENSE)
+[tiny-kafka is released under the 3-clause license ("New BSD License" or "Modified BSD License").](http://github.com/mixradio/tiny-kafka/blob/master/LICENSE)
 
