@@ -118,10 +118,14 @@
     (let [c (sim-consumer [(n-messages 0 5)
                            head-block])
           read (atom [])
-          fetching (future (try (doseq [m (log-seq c "anything" 0 0)]
+          block-on-me (promise)
+          fetching (future (try (doseq [m (log-seq c "anything" 0 0 {:poll-ms 10})]
+                                  (deliver block-on-me :something)
                                   (swap! read conj m))
                                 (catch Exception e
-                                    nil)))]
+                                  nil)))]
+      ;;wait for the first block to be read
+      (is (deref block-on-me 2000 false))
       ;;put a new block on the log
       (dosync (alter (:state c) conj (n-messages 5 10)))
       ;;force an exception to kill our future

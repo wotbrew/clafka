@@ -1,21 +1,30 @@
 # tiny-kafka
 
-Concept:
+###Concept
 
-Provide the simplest possible consumer and producer interfaces for kafka  
-by exposing the new java producer api and the simple consumer.
+Provide the simplest possible consumer and producer interfaces for kafka by exposing the new java producer api and the simple consumer.
 
+It is designed to be used as the basis for more sophisticated consumers whose needs are not met 
+by the default zookeeper consumer in kafka.
+    
 ## Usage
 
-LEIN HERE
+```clojure 
+[mixrad.io/tiny-kafka "0.1.0"]
+```
+```clojure
+(require '[tiny-kafka.core :refer :all])
+```
 
 ### Consumer
-I have only provided a wrapper for the simple consumer, a good zookeeper consumer api can be found in (http://github.com/pingles/clj-kafka)[clj-kafka]
+I have only provided a wrapper for the simple consumer, a good zookeeper consumer api can be found in [clj-kafka](http://github.com/pingles/clj-kafka)
 
 First create a `SimpleConsumer` instance with `consumer`
 
 ```clojure
 (def c (consumer "localhost" 9092))
+;;close a consumer with
+(.close c)
 ```
 
 The `SimpleConsumer` talks to a single broker, and can only receive data for partitions on which that
@@ -73,14 +82,47 @@ terminate when the log is exhausted, rather it enters a polling mode allowing yo
 (log-seq c "my-topic 0 0 {:size 1024, :poll-ms 2000})
 ``` 
  
-
 `fetch-log` and `fetch-seq` will skip messages that are too large to be fetched with a single fetch,
 so tune the fetch-size carefully. The default fetch size is 512KB should be plenty 
 for most use cases.
 
-
 ### Producer 
 
+You can produce messages using the `KafkaProducer` api.
+
+Create a producer using configuration as specified: [docs](http://kafka.apache.org/documentation.html#newproducerconfigs)
+```clojure
+(def p (producer {"bootstrap.servers" "localhost:9092,localhost:9093"}))
+```
+** NB ** - The config options are specified in the properties style, so always use strings!
+
+Then publish a message using  `publish!`
+
+```clojure
+(publish! p "topic-a" (.getBytes "some-key") (.getBytes "hello world!"))
+;;close a producer with 
+(.close p)
+```
+
+By default `publish!` will take byte arrays for the key and value. If you want you can use the `KafkaProducer` serialization mechanism by specifying a pair of either functions or `Serializer` instances when you create the producer.
+
+```clojure
+;;using a pair of functions, one for the key and the latter for the value
+(def p2 (producer {"bootstrap.servers" "localhost:9092,localhost:9093"} 
+                  (fn [topic v] (.getBytes v))
+                  (fn [topic v] (.getBytes v))))
+                  
+;;using just a single function for both the key the value
+(def p3 (producer {"bootstrap.servers" "localhost:9092,localhost:9093"}
+                  (fn [topic v] (.getBytes v))))
+```
+
+### Contributing
+
+Low hanging fruit:
+- There are no type hints!
+- More tests would be good
+- Keep the library simple, its not designed as competition for java api's or clj-kafka, its just a wrapper!
 
 ## License
 Copyright © 2015 MixRadio
