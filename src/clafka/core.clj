@@ -1,4 +1,4 @@
-(ns tiny-kafka.core
+(ns clafka.core
   "Contains a clojure interface for the Producer and SimpleConsumer api's"
   (:import [kafka.api FetchRequestBuilder OffsetRequest PartitionOffsetRequestInfo]
            [kafka.javaapi TopicMetadataRequest]
@@ -85,7 +85,7 @@
   1. Query topic metadata with `topic-metadata-request`
   2. Query leadership status with `find-leader` and `find-leaders`
   3. Fetch data with `fetch`, `fetch-log` and `log-seq`
-  4. Make offset metadata requests with `offsets`
+  4. Make offset metadata requests with `offsets` or `offset-at`
 
   The consumer maintains a tcp connection internally and can be closed with
   `.close` - be warned, there appears to be a bug in kafka 0.8.2 whereby this
@@ -126,26 +126,6 @@
   (->> (.send consumer (TopicMetadataRequest. ^java.util.List topics))
        .topicsMetadata
        (keep topic-metadata->map)))
-
-(defn block
-  "Returns a map describing a block of data in a kafka log"
-  [topic partition offset size]
-  {:topic topic
-   :partition partition
-   :offset offset
-   :size size})
-
-(defn message-and-offset->map
-  [mao]
-  (when mao
-    {:message (when-let [m (.message mao)]
-                (let [payload (.payload m)
-                      bytes (byte-array (.limit payload))]
-                  (.get payload bytes)
-                  bytes))
-     :next-offset (.nextOffset mao)
-     :offset (.offset mao)}))
-
 
 (def earliest-time
   "A constant that can be used as a `time` value
@@ -221,6 +201,47 @@
            (for [[k v] r]
              [k (mapv #(dissoc % :error :error-code) v)])))))
 
+(defn offset-at
+  "Makes a request to find the offset for time `time` in the log
+  given by the `topic` and `partition` - you can use the 2 special constants
+  `earliest-time` and `latest-time` to ask for the earliest or latest offset"
+  ([consumer topic partition time]
+   (offset-at consumer topic partition time (.clientId consumer)))
+  ([consumer topic partition time client-id]
+   (let [r (offsets consumer {topic [partition]} time client-id)]
+     (-> r (get topic) first :offset))))
+
+(defn earliest-offset
+  "Finds the earliest offset in the log"
+  [consumer topic partition]
+  (offset-at consumer topic partition earliest-time))
+
+(defn latest-offset
+  "Finds the latest offset in the log"
+  [consumer topic partition]
+  (offset-at consumer topic partition latest-time))
+
+
+(defn block
+  "Returns a map describing a block of data in a kafka log"
+  [topic partition offset size]
+  {:topic topic
+   :partition partition
+   :offset offset
+   :size size})
+
+(defn message-and-offset->map
+  [mao]
+  (when mao
+    {:message (when-let [m (.message mao)]
+                (let [payload (.payload m)
+                      bytes (byte-array (.limit payload))]
+                  (.get payload bytes)
+                  bytes))
+     :next-offset (.nextOffset mao)
+     :offset (.offset mao)}))
+
+
 (defn fetch-response->map
   [fetch-response blocks]
   (when fetch-response
@@ -237,7 +258,7 @@
                           :messages
                           (keep message-and-offset->map ms)})]))}))
 
-(defn ^:private add-fetch
+(defn- add-fetch
   [fb {:keys [topic partition offset size]}]
   (.addFetch fb topic partition offset size))
 
@@ -309,35 +330,32 @@
 
 (defn fetch-log
   "Fetch the entire log from the given offset,
-  lazily fetches in batches of `size` bytes (default 512KB) returns a seq of messages.
+  lazily fetches in batches of `size` bytes (default 512KB).
+  Returns a seq of messages.
   Messages greater in size than `size` in total will be omitted"
   ([consumer topic partition offset]
    (fetch-log consumer topic partition offset *default-fetch-size*))
   ([consumer topic partition offset size]
    (lazy-seq
-    (let [data (-fetch consumer topic partition offset size)]
-      (if (:error data)
-        (throw (ErrorMapping/exceptionFor (:error-code data)))
-        (concat (:messages data)
-                (if (log-head? data)
-                  nil
-                  (fetch-log consumer topic partition
-                             (or (next-block-offset data)
-                                 (inc offset))
-                             size))))))))
+    (let [data (fetch consumer topic partition offset size)]
+      (concat (:messages data)
+              (if (log-head? data)
+                nil
+                (fetch-log consumer topic partition
+                           (or (next-block-offset data)
+                               (inc offset))
+                           size)))))))
 
 (defn poll-from-offset
   "Fetches a block of data from the kafka log, unless
   the offset is at the head of the log, in which case it will wait and poll until a block
   can be received every `poll-ms`"
   [consumer topic partition offset size poll-ms]
-  (let [data (-fetch consumer topic partition offset size)]
-    (if (:error data)
-      (throw (ErrorMapping/exceptionFor (:error-code data)))
-      (if (log-head? data)
-        (do (Thread/sleep poll-ms)
-            (recur consumer topic partition offset size poll-ms))
-        data))))
+  (let [data (fetch consumer topic partition offset size)]
+    (if (log-head? data)
+      (do (Thread/sleep poll-ms)
+          (recur consumer topic partition offset size poll-ms))
+      data)))
 
 (def ^:dynamic *default-poll-ms* 1000)
 

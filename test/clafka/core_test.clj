@@ -1,6 +1,6 @@
-(ns tiny-kafka.core-test
+(ns clafka.core-test
   (:require [clojure.test :refer :all]
-            [tiny-kafka.core :refer :all]))
+            [clafka.core :refer :all]))
 
 (def head-block
   (fn []

@@ -1,4 +1,4 @@
-# tiny-kafka
+# clafka
 
 ###Concept
 
@@ -10,10 +10,10 @@ by the default zookeeper consumer in kafka.
 ## Usage
 
 ```clojure 
-[mixrad.io/tiny-kafka "0.1.0"]
+[mixradio/clafka "0.1.0"]
 ```
 ```clojure
-(require '[tiny-kafka.core :refer :all])
+(require '[clafka.core :refer :all])
 ```
 
 ### Consumer
@@ -138,14 +138,22 @@ By default `publish!` will take byte arrays for the key and value. If you want y
                   (fn [topic v] (.getBytes v))))
 ```
 
+### Other features
+
+- You can utilise broker acknowledgment on publish using `publish-ack!`
+- You can make requests for offsets at given times using `offsets`, `offset-at`, `earliest-offset` and `latest-offset`
+
 ### Contributing
+
+PR's welcome!
 
 Low hanging fruit:
 - There are no type hints!
+- Anything that I have missed feature wise relating to the SimpleConsumer and KafkaProducer.
 - More tests would be good
 
 ## License
 Copyright © 2015 MixRadio
 
-[tiny-kafka is released under the 3-clause license ("New BSD License" or "Modified BSD License").](http://github.com/mixradio/tiny-kafka/blob/master/LICENSE)
+[clafka is released under the 3-clause license ("New BSD License" or "Modified BSD License").](http://github.com/mixradio/tiny-kafka/blob/master/LICENSE)
 
