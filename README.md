@@ -96,7 +96,7 @@ terminate when the log is exhausted, rather it enters a polling mode allowing yo
 (log-seq c "my-topic 0 0 {:size 1024, :poll-ms 2000})
 ``` 
  
-`fetch-log` and `fetch-seq` will skip messages that are too large to be fetched with a single fetch,
+`fetch-log` and `log-seq` will skip messages that are too large to be fetched with a single fetch,
 so tune the fetch-size carefully. The default fetch size is 512KB which should be plenty 
 for most use cases.
 
