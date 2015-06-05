@@ -27,7 +27,7 @@
   "Pass in a config map for the producer [docs](http://kafka.apache.org/documentation.html#newproducerconfigs)
   and a serializer that takes the topic name and a value, and is expected to return a byte array.
 
-  n.b `serialize-default` can be override per topic to specify global serialization behaviour"
+  n.b `serialize-default` can be overridden per topic to specify global serialization behaviour"
   ([config]
    (producer config serialize-default))
   ([config serializer]

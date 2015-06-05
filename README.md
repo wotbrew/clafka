@@ -155,5 +155,5 @@ Low hanging fruit:
 ## License
 Copyright © 2015 MixRadio
 
-[clafka is released under the 3-clause license ("New BSD License" or "Modified BSD License").](http://github.com/mixradio/tiny-kafka/blob/master/LICENSE)
+[clafka is released under the 3-clause license ("New BSD License" or "Modified BSD License").](http://github.com/mixradio/clafka/blob/master/LICENSE)
 
