@@ -6,6 +6,10 @@ To provide the simplest possible consumer and producer interfaces for kafka by e
 
 It is designed to be used as the basis for more sophisticated consumers whose needs are not met 
 by the default zookeeper consumer in kafka.
+
+### Docs
+
+[api-docs](http://danstone.github.io/clafka)
     
 ## Usage
 
