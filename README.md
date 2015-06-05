@@ -17,7 +17,7 @@ API docs can be found [here](http://danstone.github.io/clafka)
     
 ## Usage
 
-Include the following in your lein `project.clj`
+Include the following to your lein `project.clj` dependencies
 
 ```clojure 
 [mixradio/clafka "0.1.0"]
