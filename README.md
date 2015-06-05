@@ -1,21 +1,30 @@
 # clafka
 
+A clojure kafka client focusing on the simple consumer.
+
+![latest clafka version](https://clojars.org/mixradio/clafka/latest-version.svg)
+
 ###Concept
 
-To provide the simplest possible consumer and producer interfaces for kafka by exposing the new java producer api and the simple consumer.
+To provide the simplest possible consumer and producer interfaces for [kafka](http://kafka.apache.org/documentation.html) by exposing the new java producer api and the simple consumer.
 
 It is designed to be used as the basis for more sophisticated consumers whose needs are not met 
 by the default zookeeper consumer in kafka.
 
 ### Docs
 
-[api-docs](http://danstone.github.io/clafka)
+API docs can be found [here](http://danstone.github.io/clafka)
     
 ## Usage
+
+Include the following in your lein `project.clj`
 
 ```clojure 
 [mixradio/clafka "0.1.0"]
 ```
+
+All functions are located in clafka.core
+
 ```clojure
 (require '[clafka.core :refer :all])
 ```
