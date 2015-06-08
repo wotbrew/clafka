@@ -13,7 +13,7 @@ by the default zookeeper consumer in kafka.
 
 ### Docs
 
-API docs can be found [here](http://danstone.github.io/clafka)
+API docs can be found [here](http://mixradio.github.io/clafka)
     
 ## Usage
 
