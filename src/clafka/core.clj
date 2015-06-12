@@ -173,54 +173,6 @@
                       (PartitionOffsetRequestInfo. time 1)]))]
     (kafka.javaapi.OffsetRequest. r (OffsetRequest/CurrentVersion) client-id)))
 
-(defn offsets*
-  [consumer m time client-id]
-  (let [r (offset-request m time client-id)
-        result (.getOffsetsBefore consumer r)]
-    (into {}
-          (for [[k v] m]
-            [k (mapv (fn [v] {:offset (first (.offsets result k v))
-                             :partition v
-                             :error-code (.errorCode result k v)
-                             :error (error-code->kw (.errorCode result k v))})
-                     v)]))))
-
-(defn offsets
-  "Make an offset request to determine the offset at `time` in the log
-  time is a long value or one of the 2 special constants `earliest-time` or
-  `latest-time`. m is a map of {topic [partition]} you will receive back a map
-   of {topic [{:offset, :partition}]}"
-  ([consumer m time]
-   (offsets consumer m time (.clientId consumer)))
-  ([consumer m time client-id]
-   (let [r (offsets* consumer m time client-id)]
-     (doseq [[k v] r]
-       (when (:error v)
-         (throw (ErrorMapping/exceptionFor (:error-code v)))))
-     (into {}
-           (for [[k v] r]
-             [k (mapv #(dissoc % :error :error-code) v)])))))
-
-(defn offset-at
-  "Makes a request to find the offset for time `time` in the log
-  given by the `topic` and `partition` - you can use the 2 special constants
-  `earliest-time` and `latest-time` to ask for the earliest or latest offset"
-  ([consumer topic partition time]
-   (offset-at consumer topic partition time (.clientId consumer)))
-  ([consumer topic partition time client-id]
-   (let [r (offsets consumer {topic [partition]} time client-id)]
-     (-> r (get topic) first :offset))))
-
-(defn earliest-offset
-  "Finds the earliest offset in the log"
-  [consumer topic partition]
-  (offset-at consumer topic partition earliest-time))
-
-(defn latest-offset
-  "Finds the latest offset in the log"
-  [consumer topic partition]
-  (offset-at consumer topic partition latest-time))
-
 
 (defn block
   "Returns a map describing a block of data in a kafka log"
@@ -273,11 +225,35 @@
     (-> (.fetch consumer fr)
         (fetch-response->map blocks))))
 
+(defprotocol IBrokerClient
+  (-fetch [this topic partition offset size])
+  (-find-topic-metadata [this topics])
+  (-find-offsets [this m time]))
+
+(extend-type SimpleConsumer
+  IBrokerClient
+  (-fetch [this topic partition offset size]
+    (let [r (fetch-request this [(block topic partition offset size)])
+          data (-> r :data (get {:topic topic :partition partition}))]
+      data))
+  (-find-topic-metadata [this topics]
+    (topic-metadata-request this topics))
+  (-find-offsets [this m time]
+    (let [r (offset-request m time (.clientId this))
+          result (.getOffsetsBefore this r)]
+    (into {}
+          (for [[k v] m]
+            [k (mapv (fn [v] {:offset (first (.offsets result k v))
+                             :partition v
+                             :error-code (.errorCode result k v)
+                             :error (error-code->kw (.errorCode result k v))})
+                     v)])))))
+
 (defn find-leaders
   "Finds partition leaders for the given topics"
   [consumer topics]
   (map #(update-in % [:partitions] (partial map (juxt :partition-id :leader)))
-       (topic-metadata-request consumer topics)))
+       (-find-topic-metadata consumer topics)))
 
 (defn find-leader
   "Finds the leader for the given topic partition"
@@ -288,18 +264,38 @@
          :when (= (str id) (str partition))]
      leader)))
 
-(defprotocol IConsumer
-  (-fetch [this topic partition offset size]
-   "Fetches a single block of data from kafka, will only throw an exception
-    if no response is received from the broker, for broker error codes, they will be returned
-    as :error-code and as a keyword :error which may be more useful at a glance."))
+(defn offsets
+  "Make an offset request to determine the offset at `time` in the log
+  time is a long value or one of the 2 special constants `earliest-time` or
+  `latest-time`. m is a map of {topic [partition]} you will receive back a map
+   of {topic [{:offset, :partition}]}"
+  [consumer m time]
+  (let [r (-find-offsets consumer m time)]
+    (doseq [[k v] r]
+      (when (:error v)
+        (throw (ErrorMapping/exceptionFor (:error-code v)))))
+    (into {}
+          (for [[k v] r]
+            [k (mapv #(dissoc % :error :error-code) v)]))))
 
-(extend-type SimpleConsumer
-  IConsumer
-  (-fetch [this topic partition offset size]
-    (let [r (fetch-request this [(block topic partition offset size)])
-        data (-> r :data (get {:topic topic :partition partition}))]
-    data)))
+(defn offset-at
+  "Makes a request to find the offset for time `time` in the log
+  given by the `topic` and `partition` - you can use the 2 special constants
+  `earliest-time` and `latest-time` to ask for the earliest or latest offset"
+  [consumer topic partition time]
+  (let [r (offsets consumer {topic [partition]} time)]
+    (-> r (get topic) first :offset)))
+
+(defn earliest-offset
+  "Finds the earliest offset in the log"
+  [consumer topic partition]
+  (offset-at consumer topic partition earliest-time))
+
+(defn latest-offset
+  "Finds the latest offset in the log"
+  [consumer topic partition]
+  (offset-at consumer topic partition latest-time))
+
 
 (def ^:dynamic *default-fetch-size* (* 1024 512))
 

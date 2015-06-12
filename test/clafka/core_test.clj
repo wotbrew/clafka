@@ -29,7 +29,7 @@
     h))
 
 (defrecord SimulatedConsumer [state]
-  IConsumer
+  IBrokerClient
   (-fetch [this topic partition offset size]
     (if-let [next-thunk (dosync (slow-pop* state))]
       (next-thunk)
@@ -41,14 +41,14 @@
 
 (defn error-fetcher
   [error-code]
-  (reify IConsumer
+  (reify IBrokerClient
     (-fetch [this topic partition offset size]
       {:error :can-be-anything
        :error-code error-code})))
 
 (def dummy-fetcher
   "Always fetches 0 messages"
-  (reify IConsumer
+  (reify IBrokerClient
     (-fetch [this topic partition offset size]
       {:messages []})))
 
@@ -66,7 +66,7 @@
      "String partitions are passed through to the underlying fetcher as numbers"
      (is
       (= :a-number
-         (fetch (reify IConsumer
+         (fetch (reify IBrokerClient
                   (-fetch [this topic partition offset size]
                     (if (number? partition)
                       :a-number
