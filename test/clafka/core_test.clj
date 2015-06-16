@@ -1,6 +1,7 @@
 (ns clafka.core-test
   (:require [clojure.test :refer :all]
-            [clafka.core :refer :all]))
+            [clafka.core :refer :all]
+            [clafka.proto :refer :all]))
 
 (def head-block
   (fn []
