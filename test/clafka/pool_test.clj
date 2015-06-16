@@ -68,4 +68,12 @@
       (is (thrown? Exception
                    (clafka/fetch pool "test2" 0 0))))
 
-    (shutdown! pool)))
+    (shutdown! pool)
+
+    (testing "Post shutdown all requests should throw"
+      (is (thrown? Exception
+                   (clafka/fetch pool "test" 0 0)))
+      (is (thrown? Exception
+                   (clafka/find-leader pool "test" 1)))
+      (is (thrown? Exception
+                   (clafka/earliest-offset pool "test" 2))))))

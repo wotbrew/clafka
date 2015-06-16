@@ -72,17 +72,23 @@
          f args)
         (throw (Exception. (str "No clients could be found for broker: " leader)))))))
 
-(defrecord PooledClient [meta-queue m]
+(defrecord PooledClient [meta-queue shutdown? m]
   IBrokerClient
   (-fetch [this topic partition offset size]
+    (when @shutdown?
+      (throw (Exception. "PooledClient is closed")))
     (with-leader-client
       this topic partition
       -fetch topic partition offset size))
   (-find-topic-metadata [this topics]
+    (when @shutdown?
+      (throw (Exception. "PooledClient is closed")))
     (make-req-retry
      meta-queue (count (mapcat identity (vals m)))
      -find-topic-metadata topics))
   (-find-offsets [this m time]
+    (when @shutdown?
+      (throw (Exception. "PooledClient is closed")))
     (->> (for [[topic partitions] m
                partition partitions]
            (with-leader-client
@@ -91,30 +97,42 @@
          (apply merge-with #(reduce conj %1 %2))))
   ICloseable
   (shutdown! [this]
+    (reset! shutdown? true)
     (doseq [{:keys [loop client]} (mapcat identity (vals m))]
       (try-shutdown! loop)
       (shutdown! client))))
 
 (def default-config
+  "The default configuration used for `pool`"
   {:wait-time 1000
    :back-off-time (* 5 2000)
    :factory clafka/consumer})
 
 (defn pool
-  "Creates a pooled client allowing `n` clients per broker. Reroutes requests requiring leadership
-  to the correct brokers and load balances requests over the pool of connections.
-
-  If a leader changes while still making a request you can still get a `NotLeaderForPartitionException`.
+  "Creates a pooled client allowing `n` clients per broker.
 
   Brokers should be collection of maps of the form `{:host host-name, :port port-number}`.
 
+  Re-routes requests requiring leadership to the correct brokers and load balances requests
+  over the pool of connections.
+
+  Some naive back-off is applied as connections fail so that they should be less likely
+  to handle subsequent requests for a period of time.
+
+  It is expected that the underlying IBrokerClient's are able to re-establish their own connections, this
+  is true of the `SimpleConsumer`.
+
+  If a leader changes while still making a request you can still get a `NotLeaderForPartitionException`.
+
   A fn `:factory` taking host, port as args can be specified in order to create custom IBrokerClients.
-  Such clients should also be `ICloseable`. (SimpleConsumers are already ICloseable)
+  Such clients should also be `ICloseable`. (`SimpleConsumer` instances are already `ICloseable`)
 
   Load balancing is achieved through allocating worker threads for each client.
   The configuration supports a `wait-time` which is the poll time on the work queue and a `back-off-time`
   which is the time a worker should wait after an error, in hope that it recovers the next time
-  it picks up some work."
+  it picks up some work.
+
+  Shutdown the pool with `clafka.proto/shutdown!`"
   ([brokers n]
    (pool brokers n {}))
   ([brokers n config]
@@ -133,4 +151,5 @@
                   :meta-loop (dequeue-loop client meta-queue config)})]
      (map->PooledClient
       {:meta-queue meta-queue
+       :shutdown? (atom false)
        :m (group-by #(select-keys (:broker %) [:host :port]) loops)}))))

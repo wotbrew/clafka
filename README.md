@@ -4,7 +4,7 @@ A clojure kafka client focusing on the simple consumer.
 
 ![latest clafka version](https://clojars.org/mixradio/clafka/latest-version.svg)
 
-###Concept
+### Concept
 
 To provide the simplest possible consumer and producer interfaces for [kafka](http://kafka.apache.org/documentation.html) by exposing the new java producer api and the simple consumer.
 
@@ -20,17 +20,23 @@ API docs can be found [here](http://mixradio.github.io/clafka)
 Include the following to your lein `project.clj` dependencies
 
 ```clojure 
-[mixradio/clafka "0.1.0"]
+[mixradio/clafka "0.2.0"]
 ```
-
-All functions are located in clafka.core
 
 ```clojure
 (require '[clafka.core :refer :all])
 ```
+### Clients
 
-### Consumer
-I have only provided a wrapper for the simple consumer, a good zookeeper consumer api can be found in [clj-kafka](http://github.com/pingles/clj-kafka)
+The `IBrokerClient` protocol is the core abstraction of clafka.
+
+You will see functions that accept an `IBrokerClient` use the name `client`, as opposed to low-level fns
+that may require a `consumer`. Most functions require a `client`.
+
+The kafka `SimpleConsumer` is one implementation of `IBrokerClient`. A pooled implementation is also provided.
+
+#### SimpleConsumer Client
+I have provided a wrapper for the simple consumer, a good zookeeper consumer api can be found in [clj-kafka](http://github.com/pingles/clj-kafka)
 
 First create a `SimpleConsumer` instance with `consumer`
 
@@ -42,6 +48,38 @@ First create a `SimpleConsumer` instance with `consumer`
 
 The `SimpleConsumer` talks to a single broker, and can only receive data for partitions on which that
 broker is the leader.
+
+
+#### Pooled Client
+
+You can use a pooled client in order to:
+- Load balance requests over many client/consumer instances
+- Support fetching data without worrying about which broker leads a partition.
+
+Find the pooled client in `clafka.pool`.
+
+```clojure
+(require '[clafka.pool :refer [pool])
+(require '[clafka.proto :refer [shutdown!]])
+
+;; p will balance requests over 2 clients for each listed broker for a total of 4 clients.
+(def p (pool [{:host "localhost" :port 9092} {:host "localhost", :port "9093"}] 2))
+;; you can use all the regular clafka functions with the pooled client.
+(log-seq p "my-topic" 0 0)
+;; =>
+({:message #<byte[] [B@755df882>
+  :offset 0 
+  :next-offset 1}, ...)
+  
+;;close the pooled client with shutdown!, this will attempt to close all underlying clients.
+(shutdown! p)
+```
+
+By default the pool will create `SimpleConsumer` instances for each listed broker, but you can override
+this behaviour by providing a :factory as part of the `pool` config map. See the docstring for more details.
+
+Be warned, you can still get `NotLeaderForPartitionException`'s if leaders change as you are making a request, this 
+should be rare however. You should expect subsequent requests to reflect the new leader, so simply retry in these cases.
 
 #### Finding a leader
 
@@ -161,7 +199,7 @@ By default `publish!` will take byte arrays for the key and value. If you want y
 PR's welcome!
 
 Low hanging fruit:
-- There are no type hints!
+- There are few type hints!
 - Anything that I have missed feature wise relating to the SimpleConsumer and KafkaProducer.
 - More tests would be good
 
