@@ -20,7 +20,7 @@ API docs can be found [here](http://mixradio.github.io/clafka)
 Include the following to your lein `project.clj` dependencies
 
 ```clojure 
-[mixradio/clafka "0.2.0"]
+[mixradio/clafka "0.2.1"]
 ```
 
 ```clojure
