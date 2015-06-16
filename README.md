@@ -23,6 +23,8 @@ Include the following to your lein `project.clj` dependencies
 [mixradio/clafka "0.2.1"]
 ```
 
+Most functions are found in `clafka.core`
+
 ```clojure
 (require '[clafka.core :refer :all])
 ```
