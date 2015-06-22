@@ -108,7 +108,7 @@
 
 (defn +messages
   [m topic partition messages]
-  (reduce #(+message %1 topic partition %2) messages))
+  (reduce #(+message %1 topic partition %2) m messages))
 
 (defn add-message
   "Adds a message to the simulated client's log"
