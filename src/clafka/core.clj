@@ -90,6 +90,27 @@
   ([producer topic partition k v f]
    (publish-ack! producer (producer-record topic partition k v) f)))
 
+(defn node->map
+  [^org.apache.kafka.common.Node n]
+  (when n
+    {:id (.id n)
+     :host (.host n)
+     :port (.port n)}))
+
+(defn partition-info->map
+  [^org.apache.kafka.common.PartitionInfo pi]
+  (when pi
+    {:topic (.topic pi)
+     :partition (.partition pi)
+     :leader (node->map (.leader pi))
+     :replicas (keep node->map (.replicas pi))
+     :isr (keep node->map (.inSyncReplicas pi))}))
+
+(defn partitions-for
+  "Returns a seq of partition information for the given topic via the producer."
+  [^Producer producer topic]
+  (keep partition-info->map (.partitionsFor producer topic)))
+
 (def ^:dynamic *default-socket-timeout* (* 30 1000))
 (def ^:dynamic *default-buffer-size* (* 512 1024))
 
@@ -268,6 +289,13 @@
   [client topics]
   (map #(update-in % [:partitions] (partial map (juxt :partition-id :leader)))
        (-find-topic-metadata client topics)))
+
+(defn find-partitions
+  "Finds partition metadata for the give topic via the client"
+  [client topic]
+  (->> (-find-topic-metadata client [topic])
+       first
+       :partitions))
 
 (defn find-leader
   "Finds the leader for the given topic partition"
