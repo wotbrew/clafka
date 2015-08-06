@@ -1,4 +1,4 @@
-(defproject mixradio/clafka "0.2.2-SNAPSHOT"
+(defproject mixradio/clafka "0.2.2"
   :description "The simplest possible way to read and produce messages for kafka"
   :url "http://github.com/mixradio/clafka"
   :license "https://github.com/mixradio/clafka/blob/master/LICENSE"
@@ -8,6 +8,6 @@
                                [com.sun.jdmk/jmxtools]]]]
 
   :profiles {:dev {:plugins [[codox "0.8.11"]]
-                   :codox {:src-dir-uri "http://github.com/mixradio/clafka/blob/0.2.1/"
+                   :codox {:src-dir-uri "http://github.com/mixradio/clafka/blob/0.2.2/"
                            :src-linenum-anchor-prefix "L"
                            :defaults {:doc/format :markdown}}}})
