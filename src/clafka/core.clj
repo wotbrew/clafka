@@ -1,6 +1,6 @@
 (ns clafka.core
   "Contains a clojure interface for the Producer and SimpleConsumer api's"
-  (:import [kafka.api FetchRequestBuilder OffsetRequest PartitionOffsetRequestInfo]
+  (:import [kafka.api FetchRequest FetchRequestBuilder OffsetRequest PartitionOffsetRequestInfo]
            [kafka.javaapi TopicMetadataRequest]
            [kafka.javaapi.consumer SimpleConsumer]
            [kafka.common ErrorMapping TopicAndPartition]
@@ -41,8 +41,12 @@
 
 (defn producer-record
   "Creates a keyed message for the given topic"
+  ([topic v]
+   (ProducerRecord. topic v))
   ([topic k v]
-   (ProducerRecord. topic k v)))
+   (ProducerRecord. topic k v))
+  ([topic partition k v]
+   (ProducerRecord. topic (int partition) k v)))
 
 (defn record-metadata->map
   [^RecordMetadata rm]
@@ -57,8 +61,12 @@
   ([producer producer-record]
    (let [fut (.send ^Producer producer producer-record)]
      (delay (record-metadata->map @fut))))
+  ([producer topic v]
+   (publish! producer (producer-record topic v)))
   ([producer topic k v]
-   (publish! producer (producer-record topic k v))))
+   (publish! producer (producer-record topic k v)))
+  ([producer topic partition k v]
+   (publish! producer (producer-record topic partition k v))))
 
 (defn ^Callback fn->callback
   [f]
@@ -75,8 +83,12 @@
   ([producer producer-record f]
    (let [fut (.send ^Producer producer producer-record (fn->callback f))]
      (delay (record-metadata->map @fut))))
+  ([producer topic v f]
+   (publish-ack! producer (producer-record topic v) f))
   ([producer topic k v f]
-   (publish-ack! producer (producer-record topic k v) f)))
+   (publish-ack! producer (producer-record topic k v) f))
+  ([producer topic partition k v f]
+   (publish-ack! producer (producer-record topic partition k v) f)))
 
 (def ^:dynamic *default-socket-timeout* (* 30 1000))
 (def ^:dynamic *default-buffer-size* (* 512 1024))
@@ -123,7 +135,7 @@
      :partitions (keep partition-metadata->map (.partitionsMetadata topic-metadata))}))
 
 (defn topic-metadata-request
-  [consumer topics]
+  [^SimpleConsumer consumer topics]
   (->> (.send consumer (TopicMetadataRequest. ^java.util.List topics))
        .topicsMetadata
        (keep topic-metadata->map)))
@@ -222,9 +234,9 @@
   in the `blocks` collection, each block is simply a map of :topic, :partition, :offset and :size"
   [^SimpleConsumer consumer blocks]
   (let [fb (FetchRequestBuilder.)
-        fb (reduce add-fetch fb blocks)
+        ^FetchRequestBuilder fb (reduce add-fetch fb blocks)
         fr (.build fb)]
-    (-> (.fetch consumer fr)
+    (-> (.fetch consumer ^FetchRequest fr)
         (fetch-response->map blocks))))
 
 (extend-type SimpleConsumer
