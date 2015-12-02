@@ -47,12 +47,6 @@
       {:error :can-be-anything
        :error-code error-code})))
 
-(def dummy-fetcher
-  "Always fetches 0 messages"
-  (reify IBrokerClient
-    (-fetch [this topic partition offset size]
-      {:messages []})))
-
 (deftest test-fetch
   (testing "Errors are thrown if an :error & :error-code is passed back in the fetch response"
     (->>
