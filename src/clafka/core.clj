@@ -112,6 +112,7 @@
   (keep partition-info->map (.partitionsFor producer topic)))
 
 (def ^:dynamic *default-socket-timeout* (* 30 1000))
+
 (def ^:dynamic *default-buffer-size* (* 512 1024))
 
 (defn consumer
@@ -133,33 +134,6 @@
    (consumer host port client-id *default-socket-timeout* *default-buffer-size*))
   ([host port client-id socket-timeout buffer-size]
     (SimpleConsumer. host port socket-timeout buffer-size client-id)))
-
-(defn broker->map
-  [^kafka.cluster.Broker broker]
-  (when broker
-    {:host (.host broker)
-     :port (.port broker)
-     :id (.id broker)}))
-
-(defn partition-metadata->map
-  [^kafka.javaapi.PartitionMetadata partition-metadata]
-  (when partition-metadata
-    {:partition-id (.partitionId partition-metadata)
-     :isr (keep broker->map (.isr partition-metadata))
-     :leader (broker->map (.leader partition-metadata))
-     :replicas (keep broker->map (.replicas partition-metadata))}))
-
-(defn topic-metadata->map
-  [^kafka.javaapi.TopicMetadata topic-metadata]
-  (when topic-metadata
-    {:topic (.topic topic-metadata)
-     :partitions (keep partition-metadata->map (.partitionsMetadata topic-metadata))}))
-
-(defn topic-metadata-request
-  [^SimpleConsumer consumer topics]
-  (->> (.send consumer (TopicMetadataRequest. ^java.util.List topics))
-       .topicsMetadata
-       (keep topic-metadata->map)))
 
 (def earliest-time
   "A constant that can be used as a `time` value
@@ -198,6 +172,35 @@
    (ErrorMapping/UnknownCode) :unknown
    (ErrorMapping/UnknownTopicOrPartitionCode) :unknown-topic-or-partition})
 
+(defn broker->map
+  [^kafka.cluster.Broker broker]
+  (when broker
+    {:host (.host broker)
+     :port (.port broker)
+     :id (.id broker)}))
+
+(defn partition-metadata->map
+  [^kafka.javaapi.PartitionMetadata partition-metadata]
+  (when partition-metadata
+    {:partition-id (.partitionId partition-metadata)
+     :isr (keep broker->map (.isr partition-metadata))
+     :leader (broker->map (.leader partition-metadata))
+     :replicas (keep broker->map (.replicas partition-metadata))}))
+
+(defn topic-metadata->map
+  [^kafka.javaapi.TopicMetadata topic-metadata]
+  (when topic-metadata
+    {:topic (.topic topic-metadata)
+     :partitions (keep partition-metadata->map (.partitionsMetadata topic-metadata))
+     :error-code (.errorCode topic-metadata)
+     :error (error-code->kw (.errorCode topic-metadata))
+     :size (.sizeInBytes topic-metadata)}))
+
+(defn topic-metadata-request
+  [^SimpleConsumer consumer topics]
+  (->> (.send consumer (TopicMetadataRequest. ^java.util.List topics))
+       .topicsMetadata
+       (keep topic-metadata->map)))
 
 (defn offset-request
   [m time client-id]
@@ -206,7 +209,6 @@
                      [(TopicAndPartition. k v)
                       (PartitionOffsetRequestInfo. time 1)]))]
     (kafka.javaapi.OffsetRequest. r (OffsetRequest/CurrentVersion) client-id)))
-
 
 (defn block
   "Returns a map describing a block of data in a kafka log"
@@ -226,7 +228,6 @@
                   bytes))
      :next-offset (.nextOffset mao)
      :offset (.offset mao)}))
-
 
 (defn fetch-response->map
   [^kafka.javaapi.FetchResponse fetch-response blocks]
@@ -252,7 +253,7 @@
 (defn fetch-request
   "Requests the consumer to fetch
   blocks of data from kafka the blocks are described by maps
-  in the `blocks` collection, each block is simply a map of :topic, :partition, :offset and :size"
+  in the `blocks` collection, each block is simply a map of :topic, :partition, :offset and :size."
   [^SimpleConsumer consumer blocks]
   (let [fb (FetchRequestBuilder.)
         ^FetchRequestBuilder fb (reduce add-fetch fb blocks)
@@ -284,16 +285,25 @@
                              :error (error-code->kw (.errorCode result k v))})
                      v)])))))
 
+(defn find-topic-metadata
+  "Requests metadata about the topics supplied. Returns a seq containing
+  one map for each topic created."
+  [client topics]
+  (for [topic (-find-topic-metadata client topics)]
+    (if (:error topic)
+      (throw (ErrorMapping/exceptionFor (:error-code topic)))
+      topic)))
+
 (defn find-leaders
-  "Finds partition leaders for the given topics"
+  "Finds partition leaders for the given topics."
   [client topics]
   (map #(update-in % [:partitions] (partial map (juxt :partition-id :leader)))
-       (-find-topic-metadata client topics)))
+       (find-topic-metadata client topics)))
 
 (defn find-partitions
-  "Finds partition metadata for the give topic via the client"
+  "Finds partition metadata for the give topic via the client."
   [client topic]
-  (->> (-find-topic-metadata client [topic])
+  (->> (find-topic-metadata client [topic])
        first
        :partitions))
 
@@ -301,7 +311,7 @@
   "Finds the leader for the given topic partition"
   [client topic partition]
   (first
-   (for [{:keys [topic partitions]} (find-leaders client [topic])
+   (for [{:keys [partitions]} (find-leaders client [topic])
          [id leader] partitions
          :when (= (str id) (str partition))]
      leader)))
