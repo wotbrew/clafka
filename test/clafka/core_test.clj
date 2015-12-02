@@ -77,8 +77,7 @@
                 0)))))
 
   (->> "If an exception is thrown by the underlying fetch call it bubbles up"
-       (is (thrown? Exception
-                    (fetch (sim-consumer [#(throw (Exception.))]))))))
+       (is (thrown? Exception (fetch (sim-consumer [#(throw (Exception.))]) "can-be-anything" 0 0)))))
 
 (deftest test-fetch-log
 
