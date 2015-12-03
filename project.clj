@@ -1,4 +1,4 @@
-(defproject mixradio/clafka "0.2.3"
+(defproject mixradio/clafka "0.2.4-SNAPSHOT"
   :description "The simplest possible way to read and produce messages for kafka"
   :url "http://github.com/mixradio/clafka"
   :license "https://github.com/mixradio/clafka/blob/master/LICENSE"
