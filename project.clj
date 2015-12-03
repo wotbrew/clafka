@@ -8,6 +8,6 @@
                                [com.sun.jdmk/jmxtools]]]]
 
   :profiles {:dev {:plugins [[codox "0.8.11"]]
-                   :codox {:src-dir-uri "http://github.com/mixradio/clafka/blob/0.2.2/"
+                   :codox {:src-dir-uri "http://github.com/mixradio/clafka/blob/0.2.3/"
                            :src-linenum-anchor-prefix "L"
                            :defaults {:doc/format :markdown}}}})
