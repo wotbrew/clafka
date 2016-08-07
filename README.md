@@ -13,7 +13,7 @@ by the default zookeeper consumer in kafka.
 
 ### Docs
 
-API docs can be found [here](http://mixradio.github.io/clafka)
+API docs can be found [here](http://danstone.github.io/clafka)
     
 ## Usage
 
@@ -206,7 +206,6 @@ Low hanging fruit:
 - More tests would be good
 
 ## License
-Copyright © 2015 MixRadio
 
-[clafka is released under the 3-clause license ("New BSD License" or "Modified BSD License").](http://github.com/mixradio/clafka/blob/master/LICENSE)
+[clafka is released under the 3-clause license ("New BSD License" or "Modified BSD License").](http://github.com/danstone/clafka/blob/master/LICENSE)
 
